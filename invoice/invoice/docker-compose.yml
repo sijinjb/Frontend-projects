@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  app:
+    build: ./app
+    hostname: invoice.cc
+    restart: unless-stopped
+    ports:
+      - "9002:9000"
+    volumes:
+      - ./app:/app
+    depends_on:
+      - cache
+      - mysql
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm -t"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    mem_limit: 1g  # Set memory limit to 1 gb
+  
+  cache:
+    image: redis:7.2.3-alpine
+    restart: unless-stopped
+    ports:
+      - "6390:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    mem_limit: 500m
+  
+  mysql:
+    image: mysql:latest
+    restart: unless-stopped
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: BhEsxFJ4XcMUa5y9Y826Qn
+      MYSQL_DATABASE: invoice
+      MYSQL_USER: invoicer
+      MYSQL_PASSWORD: HrauPyJsx7N6YWMq9vAwFB
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "invoicer", "-pHrauPyJsx7N6YWMq9vAwFB"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    mem_limit: 1g
+
+  proxy:
+    image: nginx:1.25.3-alpine
+    ports:
+      - "8001:80"
+    volumes:
+      - ./app:/app
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - app
+    mem_limit: 250m
